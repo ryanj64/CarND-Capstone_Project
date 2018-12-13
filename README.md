@@ -34,11 +34,6 @@ This is my submission for the final project (Individual Submission).  In the **S
     - Used to reach our target velocity.  The PID controller was provided in the repository.  The only work here is to use the base values provided in the walk-through or to use twiddle to optimize the values further.
 
 
-### Noticable
-
-1. The car seems to take a while after the light turns green, event the GT is lagging a bit.
-
-
 # Udacity Original Readme Contents
 
 
