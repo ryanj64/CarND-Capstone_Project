@@ -4,11 +4,11 @@ import PIL
 import cv2
 import numpy as np
 from PIL import Image
-import visualization_utils as vis_util
+# import visualization_utils as vis_util
 import os
 import rospy
 
-PATH_TO_FROZEN_GRAPH = os.path.join('.', 'export', 'frozen_inference_graph.pb')
+# PATH_TO_FROZEN_GRAPH = os.path.join('.', 'export', 'frozen_inference_graph.pb')
 
 def get_class_name(value):
     value = int(value)
@@ -22,20 +22,19 @@ def get_class_name(value):
         return TrafficLight.UNKNOWN
 
 class TLClassifier(object):
-    def __init__(self):
+    def __init__(self, detection_graph, session, image_tensor, detection_boxes, detection_scores, detection_classes, detection_number):
         #TODO load classifier
         self.light_gt_count = 0
         self.frame_count = 0
         self.detected_traffic_light = TrafficLight.UNKNOWN
         self.previous_detected_traffic_light = TrafficLight.UNKNOWN
-        self.session = None
-        self.detection_graph = None
-        self.image_tensor = None
-        self.detection_boxes = None
-        self.detection_scores = None
-        self.detection_classes = None
-        self.detection_number = None
-        self.loaded_keep_prob = None
+        self.detection_graph = detection_graph
+        self.session = session
+        self.image_tensor = image_tensor
+        self.detection_boxes = detection_boxes
+        self.detection_scores = detection_scores
+        self.detection_classes = detection_classes
+        self.detection_number = detection_number
         self.visualize = False
         self.category_index = {1: {'name': 'traffic_light_red', 'id': 1}, 2: {'name': 'traffic_light_yellow', 'id': 2}, 3: {'name': 'traffic_light_green', 'id': 3}}
 
@@ -54,20 +53,20 @@ class TLClassifier(object):
         # https://github.com/tensorflow/models/tree/r1.5
         # The virtual machine is using Tensorflow 1.3 CPU version, so modifications
         # in producing the frozen graph needed to be done to be compatiable with Tensorflow 1.3
-        self.detection_graph = tf.Graph()
-        with self.detection_graph.as_default():
-            od_graph_def = tf.GraphDef()
-            with tf.gfile.GFile(PATH_TO_FROZEN_GRAPH, 'rb') as fid:
-                serialized_graph = fid.read()
-                od_graph_def.ParseFromString(serialized_graph)
-                tf.import_graph_def(od_graph_def, name='')
-
-        self.session = tf.Session(graph=self.detection_graph)
-        self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
-        self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
-        self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
-        self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
-        self.detection_number = self.detection_graph.get_tensor_by_name('num_detections:0')
+        # self.detection_graph = tf.Graph()
+        # with self.detection_graph.as_default():
+        #     od_graph_def = tf.GraphDef()
+        #     with tf.gfile.GFile(PATH_TO_FROZEN_GRAPH, 'rb') as fid:
+        #         serialized_graph = fid.read()
+        #         od_graph_def.ParseFromString(serialized_graph)
+        #         tf.import_graph_def(od_graph_def, name='')
+        #
+        # self.session = tf.Session(graph=self.detection_graph)
+        # self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
+        # self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
+        # self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
+        # self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
+        # self.detection_number = self.detection_graph.get_tensor_by_name('num_detections:0')
 
 
     def get_classification(self, image, light_gt):
@@ -87,13 +86,13 @@ class TLClassifier(object):
 
             self.frame_count = 0
 
-            if self.visualize:
-                if light_gt == TrafficLight.RED:
-                    cv2.imwrite(os.path.join('.', 'images', 'raw', '{1}_train_2_{0}.jpg'.format('red', self.light_gt_count)), image)
-                elif light_gt == TrafficLight.YELLOW:
-                    cv2.imwrite(os.path.join('.', 'images', 'raw', '{1}_train_2_{0}.jpg'.format('yellow', self.light_gt_count)), image)
-                elif light_gt == TrafficLight.GREEN:
-                    cv2.imwrite(os.path.join('.', 'images', 'raw', '{1}_train_2_{0}.jpg'.format('green', self.light_gt_count)), image)
+            # if self.visualize:
+            #     if light_gt == TrafficLight.RED:
+            #         cv2.imwrite(os.path.join('.', 'images', 'raw', '{1}_train_2_{0}.jpg'.format('red', self.light_gt_count)), image)
+            #     elif light_gt == TrafficLight.YELLOW:
+            #         cv2.imwrite(os.path.join('.', 'images', 'raw', '{1}_train_2_{0}.jpg'.format('yellow', self.light_gt_count)), image)
+            #     elif light_gt == TrafficLight.GREEN:
+            #         cv2.imwrite(os.path.join('.', 'images', 'raw', '{1}_train_2_{0}.jpg'.format('green', self.light_gt_count)), image)
 
 
             # Convert BGR image to RGB image.
@@ -116,33 +115,33 @@ class TLClassifier(object):
             classes = np.squeeze(classes).astype(np.int32)
             scores = np.squeeze(scores)
 
-            if self.visualize:
-                # Visual tools are provided by the Tensorflow Object Detection API.
-                vis_util.visualize_boxes_and_labels_on_image_array(
-                    image, boxes, classes, scores,
-                    self.category_index,
-                    use_normalized_coordinates=True,
-                    min_score_thresh=0.7,
-                    line_thickness=3)
-
-                result = Image.fromarray((image).astype(np.uint8))
-
-                self.detected_traffic_light = TrafficLight.UNKNOWN
-
-                if light_gt == TrafficLight.RED:
-                    result.save(os.path.join('.', 'images', 'processed', '{1}_train_2_{0}.jpg'.format('red', self.light_gt_count)))
-                    # Set the ground truth as the detected light for debugging.
-                    self.detected_traffic_light  = TrafficLight.RED
-                elif light_gt == TrafficLight.YELLOW:
-                    result.save(os.path.join('.', 'images', 'processed', '{1}_train_2_{0}.jpg'.format('yellow', self.light_gt_count)))
-                    # Set the ground truth as the detected light for debugging.
-                    self.detected_traffic_light  = TrafficLight.YELLOW
-                elif light_gt == TrafficLight.GREEN:
-                    result.save(os.path.join('.', 'images', 'processed', '{1}_train_2_{0}.jpg'.format('green', self.light_gt_count)))
-                    # Set the ground truth as the detected light for debugging.
-                    self.detected_traffic_light = TrafficLight.GREEN
-
-                self.light_gt_count += 1
+            # if self.visualize:
+            #     # Visual tools are provided by the Tensorflow Object Detection API.
+            #     vis_util.visualize_boxes_and_labels_on_image_array(
+            #         image, boxes, classes, scores,
+            #         self.category_index,
+            #         use_normalized_coordinates=True,
+            #         min_score_thresh=0.7,
+            #         line_thickness=3)
+            #
+            #     result = Image.fromarray((image).astype(np.uint8))
+            #
+            #     self.detected_traffic_light = TrafficLight.UNKNOWN
+            #
+            #     if light_gt == TrafficLight.RED:
+            #         result.save(os.path.join('.', 'images', 'processed', '{1}_train_2_{0}.jpg'.format('red', self.light_gt_count)))
+            #         # Set the ground truth as the detected light for debugging.
+            #         self.detected_traffic_light  = TrafficLight.RED
+            #     elif light_gt == TrafficLight.YELLOW:
+            #         result.save(os.path.join('.', 'images', 'processed', '{1}_train_2_{0}.jpg'.format('yellow', self.light_gt_count)))
+            #         # Set the ground truth as the detected light for debugging.
+            #         self.detected_traffic_light  = TrafficLight.YELLOW
+            #     elif light_gt == TrafficLight.GREEN:
+            #         result.save(os.path.join('.', 'images', 'processed', '{1}_train_2_{0}.jpg'.format('green', self.light_gt_count)))
+            #         # Set the ground truth as the detected light for debugging.
+            #         self.detected_traffic_light = TrafficLight.GREEN
+            #
+            #     self.light_gt_count += 1
 
             detected_classes = []
             # Find the 3 top indices with the highest scores.
@@ -164,7 +163,7 @@ class TLClassifier(object):
             self.frame_count += 1
             self.detected_traffic_light = self.previous_detected_traffic_light
 
-        if self.visualize:
-            rospy.logwarn('Detected Traffic Light: {0}'.format(self.detected_traffic_light))
+        # if self.visualize:
+        #     rospy.logwarn('Detected Traffic Light: {0}'.format(self.detected_traffic_light))
 
         return self.detected_traffic_light

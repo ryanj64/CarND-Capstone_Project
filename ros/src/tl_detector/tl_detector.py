@@ -10,10 +10,35 @@ from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
 import yaml
+import os
+import tensorflow as tf0
 
 from scipy.spatial import KDTree
 
 STATE_COUNT_THRESHOLD = 3
+
+PATH_TO_FROZEN_GRAPH = os.path.join('.', 'export', 'frozen_inference_graph.pb')
+
+# Load frozen tensorflow model into memory.
+# From Tensorflow Object Detection API and Udacity's object detection lab.
+# I used the r1.5 branch since I am using Cuda Toolkit 9.0 with cuDNN 7.0
+# https://github.com/tensorflow/models/tree/r1.5
+# The virtual machine is using Tensorflow 1.3 CPU version, so modifications
+# in producing the frozen graph needed to be done to be compatiable with Tensorflow 1.3
+detection_graph0 = tf0.Graph()
+with detection_graph0.as_default():
+    od_graph_def = tf0.GraphDef()
+    with tf0.gfile.GFile(PATH_TO_FROZEN_GRAPH, 'rb') as fid:
+        serialized_graph = fid.read()
+        od_graph_def.ParseFromString(serialized_graph)
+        tf0.import_graph_def(od_graph_def, name='')
+
+session0 = tf0.Session(graph=detection_graph0)
+image_tensor0 = detection_graph0.get_tensor_by_name('image_tensor:0')
+detection_boxes0 = detection_graph0.get_tensor_by_name('detection_boxes:0')
+detection_scores0 = detection_graph0.get_tensor_by_name('detection_scores:0')
+detection_classes0 = detection_graph0.get_tensor_by_name('detection_classes:0')
+detection_number0 = detection_graph0.get_tensor_by_name('num_detections:0')
 
 class TLDetector(object):
     def __init__(self):
@@ -33,6 +58,14 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
+
+        self.bridge = CvBridge()
+        self.light_classifier = TLClassifier(detection_graph0, session0, image_tensor0, detection_boxes0, detection_scores0, detection_classes0, detection_number0)
+        self.listener = tf.TransformListener()
+
+        config_string = rospy.get_param("/traffic_light_config")
+        self.config = yaml.load(config_string)
+
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
@@ -46,14 +79,7 @@ class TLDetector(object):
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
-        config_string = rospy.get_param("/traffic_light_config")
-        self.config = yaml.load(config_string)
-
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
-
-        self.bridge = CvBridge()
-        self.light_classifier = TLClassifier()
-        self.listener = tf.TransformListener()
 
         # self.loop()
         rospy.spin()
