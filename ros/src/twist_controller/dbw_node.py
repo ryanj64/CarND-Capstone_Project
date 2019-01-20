@@ -2,6 +2,7 @@
 
 import rospy
 from std_msgs.msg import Bool
+from std_msgs.msg import Int32
 from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport
 from geometry_msgs.msg import TwistStamped
 import math
@@ -67,6 +68,10 @@ class DBWNode(object):
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb)
         rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
 
+        #Added for 3 run
+        self.detector_ready = False
+        rospy.Subscriber('/detector_ready', Bool, self.detector_ready_cb)
+
 
         self.current_vel = None
         self.curr_ang_vel = None
@@ -93,12 +98,18 @@ class DBWNode(object):
             #   self.publish(throttle, brake, steer)
             if not None in (self.current_vel, self.linear_vel, self.angular_vel):
                 self.throttle, self.brake, self.steering = self.controller.control(current_vel=self.current_vel, dbw_enabled=self.dbw_enabled, linear_vel=self.linear_vel, angular_vel=self.angular_vel)
-                if self.dbw_enabled:
+                if self.dbw_enabled and self.detector_ready:
                     self.publish(self.throttle, self.brake, self.steering)
+                else:
+                    if self.dbw_enabled:
+                        rospy.logwarn('Waiting for classifier to load!')
             rate.sleep()
 
     def dbw_enabled_cb(self, msg):
         self.dbw_enabled = msg
+
+    def detector_ready_cb(self, msg):
+        self.detector_ready = msg
 
     def twist_cb(self, msg):
         self.linear_vel = msg.twist.linear.x

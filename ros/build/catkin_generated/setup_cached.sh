@@ -8,9 +8,6 @@
 
 # modified environment variables
 export CMAKE_PREFIX_PATH="/home/student/CarND-Capstone_Project/ros/devel:$CMAKE_PREFIX_PATH"
-export LD_LIBRARY_PATH="/home/student/CarND-Capstone_Project/ros/devel/lib:$LD_LIBRARY_PATH"
-export PKG_CONFIG_PATH="/home/student/CarND-Capstone_Project/ros/devel/lib/pkgconfig:$PKG_CONFIG_PATH"
 export PWD="/home/student/CarND-Capstone_Project/ros/build"
-export PYTHONPATH="/home/student/CarND-Capstone_Project/ros/devel/lib/python2.7/dist-packages:$PYTHONPATH"
-export ROSLISP_PACKAGE_DIRECTORIES="/home/student/CarND-Capstone_Project/ros/devel/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
-export ROS_PACKAGE_PATH="/home/student/CarND-Capstone/ros/src:/home/student/CarND-Capstone_Project/ros/src:$ROS_PACKAGE_PATH"
+export ROSLISP_PACKAGE_DIRECTORIES="/home/student/CarND-Capstone_Project/ros/devel/share/common-lisp"
+export ROS_PACKAGE_PATH="/home/student/CarND-Capstone_Project/ros/src:$ROS_PACKAGE_PATH"

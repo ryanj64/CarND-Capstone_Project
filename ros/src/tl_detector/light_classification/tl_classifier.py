@@ -4,11 +4,11 @@ import PIL
 import cv2
 import numpy as np
 from PIL import Image
-# import visualization_utils as vis_util
+import visualization_utils as vis_util
 import os
 import rospy
 
-# PATH_TO_FROZEN_GRAPH = os.path.join('.', 'export', 'frozen_inference_graph.pb')
+PATH_TO_FROZEN_GRAPH = os.path.join('.', 'export', 'frozen_inference_graph.pb')
 
 def get_class_name(value):
     value = int(value)
@@ -22,29 +22,30 @@ def get_class_name(value):
         return TrafficLight.UNKNOWN
 
 class TLClassifier(object):
-    def __init__(self, detection_graph, session, image_tensor, detection_boxes, detection_scores, detection_classes, detection_number):
+    def __init__(self):
         #TODO load classifier
         self.light_gt_count = 0
         self.frame_count = 0
         self.detected_traffic_light = TrafficLight.UNKNOWN
         self.previous_detected_traffic_light = TrafficLight.UNKNOWN
-        self.detection_graph = detection_graph
-        self.session = session
-        self.image_tensor = image_tensor
-        self.detection_boxes = detection_boxes
-        self.detection_scores = detection_scores
-        self.detection_classes = detection_classes
-        self.detection_number = detection_number
+        self.session = None
+        self.detection_graph = None
+        self.image_tensor = None
+        self.detection_boxes = None
+        self.detection_scores = None
+        self.detection_classes = None
+        self.detection_number = None
+        self.loaded_keep_prob = None
         self.visualize = False
         self.category_index = {1: {'name': 'traffic_light_red', 'id': 1}, 2: {'name': 'traffic_light_yellow', 'id': 2}, 3: {'name': 'traffic_light_green', 'id': 3}}
 
-        if self.visualize:
-            if not os.path.exists(os.path.join('.', 'images')):
-                os.mkdir(os.path.join('.', 'images'))
-            if not os.path.exists(os.path.join('.', 'images', 'processed')):
-                os.mkdir(os.path.join('.', 'images', 'processed'))
-            if not os.path.exists(os.path.join('.', 'images', 'raw')):
-                os.mkdir(os.path.join('.', 'images', 'raw'))
+        # if self.visualize:
+        #     if not os.path.exists(os.path.join('.', 'images')):
+        #         os.mkdir(os.path.join('.', 'images'))
+        #     if not os.path.exists(os.path.join('.', 'images', 'processed')):
+        #         os.mkdir(os.path.join('.', 'images', 'processed'))
+        #     if not os.path.exists(os.path.join('.', 'images', 'raw')):
+        #         os.mkdir(os.path.join('.', 'images', 'raw'))
 
 
         # Load frozen tensorflow model into memory.
@@ -53,23 +54,24 @@ class TLClassifier(object):
         # https://github.com/tensorflow/models/tree/r1.5
         # The virtual machine is using Tensorflow 1.3 CPU version, so modifications
         # in producing the frozen graph needed to be done to be compatiable with Tensorflow 1.3
-        # self.detection_graph = tf.Graph()
-        # with self.detection_graph.as_default():
-        #     od_graph_def = tf.GraphDef()
-        #     with tf.gfile.GFile(PATH_TO_FROZEN_GRAPH, 'rb') as fid:
-        #         serialized_graph = fid.read()
-        #         od_graph_def.ParseFromString(serialized_graph)
-        #         tf.import_graph_def(od_graph_def, name='')
-        #
-        # self.session = tf.Session(graph=self.detection_graph)
-        # self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
-        # self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
-        # self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
-        # self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
-        # self.detection_number = self.detection_graph.get_tensor_by_name('num_detections:0')
+        self.detection_graph = tf.Graph()
+        with self.detection_graph.as_default():
+            od_graph_def = tf.GraphDef()
+            with tf.gfile.GFile(PATH_TO_FROZEN_GRAPH, 'rb') as fid:
+                serialized_graph = fid.read()
+                od_graph_def.ParseFromString(serialized_graph)
+                tf.import_graph_def(od_graph_def, name='')
+
+        self.session = tf.Session(graph=self.detection_graph)
+        self.image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
+        self.detection_boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
+        self.detection_scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
+        self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
+        self.detection_number = self.detection_graph.get_tensor_by_name('num_detections:0')
 
 
-    def get_classification(self, image, light_gt):
+    # def get_classification(self, image, light_gt):
+    def get_classification(self, image):
         """Determines the color of the traffic light in the image
 
         Args:
